@@ -47,8 +47,9 @@ def validate_series(
         issues.append(f"{duplicates} duplicated timestamps")
     if not series.index.is_monotonic_increasing:
         issues.append("index is not sorted")
-    expected = pd.date_range(series.index.min(), series.index.max(), freq=freq)
-    missing_mask = ~series.reindex(expected).notna().to_numpy()
+    unique = series[~series.index.duplicated(keep="first")]
+    expected = pd.date_range(unique.index.min(), unique.index.max(), freq=freq)
+    missing_mask = ~unique.reindex(expected).notna().to_numpy()
     missing = int(missing_mask.sum())
     if missing / max(len(expected), 1) > max_missing_share:
         issues.append(f"{missing} of {len(expected)} hours missing")
@@ -79,15 +80,18 @@ def clean_series(series: pd.Series, freq: str = "1h", allow_non_positive: bool =
     return series.reindex(full).rename_axis("timestamp").rename(series.name)
 
 
+def short_gap_mask(series: pd.Series, max_length: int) -> pd.Series:
+    missing = series.isna()
+    run_id = (missing != missing.shift()).cumsum()
+    run_length = missing.groupby(run_id).transform("sum")
+    return missing & (run_length <= max_length)
+
+
 def fill_gaps(series: pd.Series, period: int = 24, max_interpolate: int = 3) -> pd.Series:
-    filled = series.interpolate(limit=max_interpolate, limit_area="inside")
-    remaining = filled.isna()
-    if remaining.any():
-        weekly = filled.shift(period * 7)
-        daily = filled.shift(period)
-        filled = filled.fillna(weekly).fillna(daily)
-    filled = filled.interpolate(limit_area="inside").bfill().ffill()
-    return filled
+    interpolated = series.interpolate(limit_area="inside")
+    filled = series.where(~short_gap_mask(series, max_interpolate), interpolated)
+    filled = filled.fillna(filled.shift(period * 7)).fillna(filled.shift(period))
+    return filled.interpolate(limit_area="inside").bfill().ffill()
 
 
 def prepare_series(series: pd.Series, freq: str = "1h", allow_non_positive: bool = False) -> pd.Series:

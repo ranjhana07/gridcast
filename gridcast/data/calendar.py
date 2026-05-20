@@ -19,8 +19,8 @@ def calendar_features(index: pd.DatetimeIndex, country: str = "PT") -> pd.DataFr
     day_after = (dates - pd.Timedelta(days=1)).isin(holiday_dates)
 
     hour = index.hour.to_numpy()
-    dow = index.dayofweek.to_numpy()
-    doy = index.dayofyear.to_numpy()
+    dow = index.day_of_week.to_numpy()
+    doy = index.day_of_year.to_numpy()
     frame = pd.DataFrame(
         {
             "hour": hour,
