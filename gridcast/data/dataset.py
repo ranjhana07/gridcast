@@ -7,7 +7,7 @@ import pandas as pd
 from gridcast.config import Settings, get_settings
 from gridcast.data import uci
 from gridcast.data.calendar import calendar_features
-from gridcast.data.solar import simulate_pv
+from gridcast.data.solar import clear_sky_hours, simulate_pv
 from gridcast.data.validation import prepare_series
 from gridcast.data.weather import Fetcher, http_fetch, load_weather
 
@@ -18,6 +18,7 @@ def build_frame(
     load: pd.Series,
     weather: pd.DataFrame,
     country: str,
+    latitude: float,
     pv_capacity_kw: float = 500.0,
 ) -> pd.DataFrame:
     load = prepare_series(load)
@@ -25,6 +26,7 @@ def build_frame(
     frame = pd.DataFrame({"load_kw": load})
     frame["solar_kw"] = simulate_pv(weather, capacity_kw=pv_capacity_kw)
     frame = frame.join(weather)
+    frame["sun_elevation"] = clear_sky_hours(frame.index, latitude)
     frame = frame.join(calendar_features(frame.index, country))
     return frame
 
@@ -47,7 +49,7 @@ def build_from_uci(
         settings.cache_dir,
         fetcher,
     )
-    return build_frame(load, weather, settings.country)
+    return build_frame(load, weather, settings.country, settings.latitude)
 
 
 def save_frame(frame: pd.DataFrame, path: Path) -> None:

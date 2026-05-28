@@ -12,8 +12,8 @@ def synthetic_frame() -> pd.DataFrame:
     index = pd.date_range("2024-01-01", periods=24 * 120, freq="1h", name="timestamp")
     rng = np.random.default_rng(3)
     hour = index.hour.to_numpy()
-    dow = index.dayofweek.to_numpy()
-    temperature = 14 + 8 * np.sin(2 * np.pi * (index.dayofyear.to_numpy() - 100) / 365) + rng.normal(0, 1, len(index))
+    dow = index.day_of_week.to_numpy()
+    temperature = 14 + 8 * np.sin(2 * np.pi * (index.day_of_year.to_numpy() - 100) / 365) + rng.normal(0, 1, len(index))
     load = 900 + 250 * np.sin(2 * np.pi * (hour - 8) / 24) - 120 * (dow >= 5) + 6 * temperature
     load = load + rng.normal(0, 18, len(index))
     radiation = np.clip(700 * np.sin(np.pi * (hour - 6) / 12), 0, None) * rng.uniform(0.6, 1.0, len(index))
