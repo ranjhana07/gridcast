@@ -8,8 +8,8 @@ from gridcast.features import FeatureSpec, horizon_features, origin_features, tr
 from gridcast.models.base import Forecast, origin_positions
 
 DEFAULT_PARAMS = {
-    "n_estimators": 350,
-    "learning_rate": 0.05,
+    "n_estimators": 220,
+    "learning_rate": 0.07,
     "num_leaves": 31,
     "min_child_samples": 30,
     "subsample": 0.8,
@@ -17,7 +17,8 @@ DEFAULT_PARAMS = {
     "colsample_bytree": 0.8,
     "reg_lambda": 1.0,
     "verbose": -1,
-    "n_jobs": 4,
+    "n_jobs": 2,
+    "max_bin": 127,
 }
 
 
