@@ -76,6 +76,8 @@ def collect_rows(
     }
     for level, array in forecast.quantiles.items():
         data[f"q{int(round(level * 100)):02d}"] = array.ravel()
+    for label, array in forecast.extras.items():
+        data[label] = array.ravel()
     return pd.DataFrame(data)
 
 
