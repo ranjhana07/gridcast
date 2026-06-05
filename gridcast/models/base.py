@@ -11,6 +11,7 @@ import pandas as pd
 class Forecast:
     point: np.ndarray
     quantiles: dict[float, np.ndarray] = field(default_factory=dict)
+    extras: dict[str, np.ndarray] = field(default_factory=dict)
 
     @property
     def horizon(self) -> int:
