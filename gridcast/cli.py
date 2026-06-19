@@ -2,12 +2,16 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pandas as pd
 import typer
 
 from gridcast.backtest import BacktestConfig
 from gridcast.benchmark import run_benchmark
 from gridcast.config import get_settings
 from gridcast.data import dataset
+from gridcast.dispatch.battery import Battery
+from gridcast.dispatch.evaluate import evaluate_dispatch, write_dispatch_report
+from gridcast.dispatch.tariff import Tariff
 from gridcast.zoo import MODEL_NAMES
 
 app = typer.Typer(help="GridCast forecasting and dispatch toolkit", no_args_is_help=True)
@@ -50,6 +54,25 @@ def benchmark(
     tables = run_benchmark(frame, models, config, output or settings.results_dir, tag=tag)
     typer.echo(tables["metrics_overall"].to_string(index=False))
     typer.echo(tables["coverage_overall"].to_string(index=False))
+
+
+@app.command("dispatch-eval")
+def dispatch_eval(
+    predictions: Path = typer.Option(None, help="predictions.csv.gz from a benchmark run"),
+    data: Path = typer.Option(None, help="Modelling frame CSV"),
+    model: list[str] = typer.Option(["lightgbm"], "--model", "-m", help="Forecast models to dispatch with"),
+    reference: str = typer.Option("naive_168", help="Model used as the naive-forecast baseline"),
+    output: Path = typer.Option(None, help="Where to write the comparison table"),
+) -> None:
+    settings = get_settings()
+    frame = dataset.load_frame(data or settings.processed_dir / "microgrid_hourly.csv")
+    forecasts = pd.read_csv(predictions or settings.results_dir / "predictions.csv.gz", parse_dates=["origin"])
+    battery = Battery.sized_for(frame["load_kw"].to_numpy())
+    tariff = Tariff()
+    names = list(dict.fromkeys([reference, *model]))
+    table = evaluate_dispatch(frame, forecasts, names, reference, tariff, battery)
+    write_dispatch_report(table, battery, tariff, output or settings.results_dir / "dispatch_savings.csv")
+    typer.echo(table.to_string(index=False))
 
 
 if __name__ == "__main__":
