@@ -12,6 +12,8 @@ from gridcast.data import dataset
 from gridcast.dispatch.battery import Battery
 from gridcast.dispatch.evaluate import evaluate_dispatch, write_dispatch_report
 from gridcast.dispatch.tariff import Tariff
+from gridcast.flows import default_jobs, forecast_flow, retrain_flow
+from gridcast.scheduler import serve as serve_jobs
 from gridcast.zoo import MODEL_NAMES
 
 app = typer.Typer(help="GridCast forecasting and dispatch toolkit", no_args_is_help=True)
@@ -73,6 +75,35 @@ def dispatch_eval(
     table = evaluate_dispatch(frame, forecasts, names, reference, tariff, battery)
     write_dispatch_report(table, battery, tariff, output or settings.results_dir / "dispatch_savings.csv")
     typer.echo(table.to_string(index=False))
+
+
+@app.command("retrain")
+def retrain(
+    model: str = typer.Option("lightgbm", help="Model to train"),
+    target: list[str] = typer.Option(["load_kw"], "--target", "-t"),
+    tolerance: float = typer.Option(0.02, help="Allowed relative regression before promotion is refused"),
+) -> None:
+    reports = retrain_flow(get_settings(), tuple(target), model, tolerance)
+    for report in reports:
+        verdict = "promoted" if report["promoted"] else "kept production"
+        typer.echo(f"{report['target']}: version {report['version']} {verdict} ({report['reason']})")
+
+
+@app.command("forecast")
+def forecast(
+    model: str = typer.Option("lightgbm", help="Registered model to use"),
+    target: list[str] = typer.Option(["load_kw"], "--target", "-t"),
+    as_of: str = typer.Option(None, help="Forecast origin, defaults to the last observation"),
+) -> None:
+    origin = pd.Timestamp(as_of) if as_of else None
+    payloads = forecast_flow(get_settings(), tuple(target), model, origin)
+    for name, payload in payloads.items():
+        typer.echo(f"{name}: {len(payload['point'])} hours from {payload['origin']}")
+
+
+@app.command("schedule")
+def schedule(poll_seconds: float = typer.Option(30.0)) -> None:
+    serve_jobs(default_jobs(get_settings()), poll_seconds)
 
 
 if __name__ == "__main__":
