@@ -38,14 +38,15 @@ QUANTILES = (0.1, 0.5, 0.9)
 
 @dataclass(frozen=True)
 class DeepConfig:
-    lookback: int = 168
-    hidden: int = 64
-    epochs: int = 8
+    lookback: int = 48
+    hidden: int = 32
+    epochs: int = 6
+    samples_per_epoch: int = 6000
     batch_size: int = 256
     learning_rate: float = 2e-3
     validation_share: float = 0.1
     seed: int = 7
-    threads: int = 4
+    threads: int = 2
 
 
 def pinball_loss(prediction: torch.Tensor, target: torch.Tensor, quantiles: torch.Tensor) -> torch.Tensor:
@@ -139,7 +140,7 @@ class QuantileSeq2Seq:
 
         for epoch in range(config.epochs):
             self.network.train()
-            order = rng.permutation(train_positions)
+            order = rng.permutation(train_positions)[: config.samples_per_epoch]
             running = 0.0
             batches = 0
             for start in range(0, len(order), config.batch_size):
