@@ -22,7 +22,7 @@ def simulate_pv(
 
 
 def clear_sky_hours(index: pd.DatetimeIndex, latitude: float) -> np.ndarray:
-    day = index.dayofyear.to_numpy()
+    day = index.day_of_year.to_numpy()
     declination = np.deg2rad(23.44) * np.sin(2 * np.pi * (284 + day) / 365)
     hour_angle = np.deg2rad(15 * (index.hour.to_numpy() - 12))
     lat = np.deg2rad(latitude)

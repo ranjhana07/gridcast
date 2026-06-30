@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 from gridcast.config import Settings, get_settings
@@ -9,7 +10,7 @@ from gridcast.data import uci
 from gridcast.data.calendar import calendar_features
 from gridcast.data.solar import clear_sky_hours, simulate_pv
 from gridcast.data.validation import prepare_series
-from gridcast.data.weather import Fetcher, http_fetch, load_weather
+from gridcast.data.weather import WEATHER_VARIABLES, Fetcher, http_fetch, load_weather
 
 TARGETS = ("load_kw", "solar_kw")
 
@@ -60,5 +61,17 @@ def save_frame(frame: pd.DataFrame, path: Path) -> None:
 def load_frame(path: Path) -> pd.DataFrame:
     frame = pd.read_csv(path, index_col=0, parse_dates=True)
     frame.index.name = "timestamp"
-    frame.index.freq = pd.infer_freq(frame.index[:100]) and pd.infer_freq(frame.index[:100])
     return frame
+
+
+def extend_frame(frame: pd.DataFrame, steps: int, country: str, latitude: float) -> pd.DataFrame:
+    future_index = pd.date_range(frame.index[-1] + pd.Timedelta(hours=1), periods=steps, freq="1h", name="timestamp")
+    future = pd.DataFrame(index=future_index, columns=frame.columns, dtype=float)
+    for column in WEATHER_VARIABLES:
+        source = frame[column].iloc[-24:].to_numpy()
+        future[column] = np.resize(source, steps)
+    future["sun_elevation"] = clear_sky_hours(future_index, latitude)
+    calendar = calendar_features(future_index, country)
+    for column in calendar.columns:
+        future[column] = calendar[column]
+    return pd.concat([frame, future])
