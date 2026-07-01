@@ -106,5 +106,15 @@ def schedule(poll_seconds: float = typer.Option(30.0)) -> None:
     serve_jobs(default_jobs(get_settings()), poll_seconds)
 
 
+@app.command("serve")
+def serve_api(
+    host: str = typer.Option("127.0.0.1"),
+    port: int = typer.Option(8000),
+) -> None:
+    import uvicorn
+
+    uvicorn.run("gridcast.api.app:create_default_app", host=host, port=port, factory=True)
+
+
 if __name__ == "__main__":
     app()
