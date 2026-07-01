@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GridCast</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.49.1/dist/apexcharts.min.js"></script>
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <span class="mark"></span>
+      <div>
+        <h1>GridCast</h1>
+        <p id="subtitle">Load forecasting and battery dispatch</p>
+      </div>
+    </div>
+    <div class="controls">
+      <label>Target
+        <select id="target">
+          <option value="load_kw">Load</option>
+          <option value="solar_kw">Solar</option>
+        </select>
+      </label>
+      <span id="status" class="pill">connecting</span>
+    </div>
+  </header>
+
+  <main>
+    <section class="kpis" id="kpis"></section>
+
+    <section class="card wide">
+      <div class="card-head">
+        <h2>Next 24 hours</h2>
+        <span class="hint" id="forecast-meta"></span>
+      </div>
+      <div id="chart-forecast"></div>
+    </section>
+
+    <section class="card wide">
+      <div class="card-head">
+        <h2>Backtest replay</h2>
+        <div class="inline">
+          <label>Model <select id="replay-model"></select></label>
+          <label>Origin <select id="replay-origin"></select></label>
+        </div>
+      </div>
+      <div id="chart-replay"></div>
+    </section>
+
+    <section class="grid two">
+      <div class="card">
+        <div class="card-head"><h2>Error by horizon</h2><span class="hint">MAE, kW</span></div>
+        <div id="chart-horizon"></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>Interval coverage by horizon</h2><span class="hint" id="coverage-hint"></span></div>
+        <div id="chart-coverage"></div>
+      </div>
+    </section>
+
+    <section class="card wide">
+      <div class="card-head">
+        <h2>Dispatch schedule</h2>
+        <span class="hint" id="dispatch-meta"></span>
+      </div>
+      <div id="chart-dispatch"></div>
+    </section>
+
+    <section class="grid two">
+      <div class="card">
+        <div class="card-head"><h2>Backtest summary</h2></div>
+        <div class="table-wrap"><table id="table-metrics"></table></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>Dispatch cost comparison</h2></div>
+        <div class="table-wrap"><table id="table-savings"></table></div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <span id="footer-meta"></span>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
