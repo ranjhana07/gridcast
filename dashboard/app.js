@@ -270,3 +270,138 @@ function renderHorizon(data) {
     tooltip: { shared: true, intersect: false },
   });
 }
+
+function renderDispatch(plan) {
+  if (!plan) {
+    showEmpty("#chart-dispatch", "No dispatch schedule has been published yet.");
+    return;
+  }
+  document.getElementById("dispatch-meta").textContent =
+    "battery " + format(plan.battery.capacity_kwh) + " kWh / " + format(plan.battery.power_kw) + " kW";
+  const x = plan.timestamps.map(toTime);
+  drawChart("dispatch", "#chart-dispatch", {
+    ...baseOptions(360),
+    chart: { ...baseOptions(360).chart, type: "line", stacked: false },
+    series: [
+      { type: "column", name: "Charge kW", data: x.map((t, i) => [t, plan.charge[i]]) },
+      { type: "column", name: "Discharge kW", data: x.map((t, i) => [t, -plan.discharge[i]]) },
+      { type: "line", name: "State of charge kWh", data: x.map((t, i) => [t, plan.soc[i]]) },
+      { type: "line", name: "Grid draw kW", data: x.map((t, i) => [t, plan.grid[i]]) },
+      { type: "line", name: "Price $/kWh", data: x.map((t, i) => [t, plan.price[i]]) },
+    ],
+    colors: [palette.charge, palette.discharge, palette.soc, palette.actual, palette.price],
+    stroke: { width: [0, 0, 3, 2, 2], curve: "stepline" },
+    plotOptions: { bar: { columnWidth: "70%" } },
+    xaxis: { type: "datetime", labels: { datetimeUTC: false } },
+    yaxis: [
+      { seriesName: "Charge kW", title: { text: "battery power, kW" }, labels: { formatter: (v) => format(v) } },
+      { seriesName: "Charge kW", show: false },
+      { opposite: true, title: { text: "state of charge, kWh" }, labels: { formatter: (v) => format(v) } },
+      { seriesName: "Grid draw kW", show: false },
+      { opposite: true, show: false, min: 0 },
+    ],
+  });
+}
+
+function renderTable(selector, columns, rows, bestKey) {
+  const table = document.querySelector(selector);
+  if (!rows.length) {
+    table.innerHTML = "<tr><td>No data</td></tr>";
+    return;
+  }
+  const best = bestKey ? Math.min(...rows.map((r) => r[bestKey])) : null;
+  const head = "<tr>" + columns.map((c) => "<th>" + c.label + "</th>").join("") + "</tr>";
+  const body = rows
+    .map(
+      (row) =>
+        '<tr class="' +
+        (bestKey && row[bestKey] === best ? "best" : "") +
+        '">' +
+        columns.map((c) => "<td>" + c.render(row) + "</td>").join("") +
+        "</tr>"
+    )
+    .join("");
+  table.innerHTML = head + body;
+}
+
+function renderMetricsTable(summary) {
+  if (!summary) {
+    renderTable("#table-metrics", [], []);
+    return;
+  }
+  const coverage = Object.fromEntries(summary.coverage.map((r) => [r.model, r]));
+  const timing = Object.fromEntries(summary.timing.map((r) => [r.model, r]));
+  const rows = summary.metrics.map((r) => ({
+    ...r,
+    coverage: coverage[r.model] ? coverage[r.model].coverage : null,
+    width: coverage[r.model] ? coverage[r.model].width : null,
+    fit: timing[r.model] ? timing[r.model].fit_seconds : null,
+  }));
+  renderTable(
+    "#table-metrics",
+    [
+      { label: "Model", render: (r) => r.model },
+      { label: "MAE", render: (r) => format(r.mae, 1) },
+      { label: "RMSE", render: (r) => format(r.rmse, 1) },
+      { label: "sMAPE %", render: (r) => format(r.smape, 2) },
+      { label: "Coverage %", render: (r) => (r.coverage === null ? "n/a" : format(r.coverage * 100, 1)) },
+      { label: "Width kW", render: (r) => format(r.width, 0) },
+      { label: "Fit s", render: (r) => format(r.fit, 1) },
+    ],
+    rows,
+    "mae"
+  );
+}
+
+function renderSavingsTable(data) {
+  const rows = data ? data.strategies : [];
+  renderTable(
+    "#table-savings",
+    [
+      { label: "Strategy", render: (r) => r.strategy },
+      { label: "Energy $", render: (r) => format(r.energy_cost) },
+      { label: "Demand $", render: (r) => format(r.demand_cost) },
+      { label: "Total $", render: (r) => format(r.total_cost) },
+      { label: "Peak kW", render: (r) => format(r.peak_kw) },
+      { label: "Saving %", render: (r) => format(r.saving_pct_vs_no_battery, 2) },
+    ],
+    rows,
+    "total_cost"
+  );
+}
+
+async function refresh() {
+  const status = document.getElementById("status");
+  const target = state.target;
+  const [forecast, plan, summary, horizon, savings] = await Promise.all([
+    tryJson("/api/forecast?target=" + target),
+    tryJson("/api/dispatch"),
+    tryJson("/api/backtest/summary"),
+    tryJson("/api/backtest/horizon"),
+    tryJson("/api/dispatch/savings"),
+  ]);
+  const health = await tryJson("/health");
+  status.textContent = health ? "online" : "api unreachable";
+  status.className = health ? "pill" : "pill bad";
+  renderKpis(forecast, target === "load_kw" ? plan : null, summary);
+  renderForecast(forecast);
+  renderHorizon(horizon);
+  renderDispatch(target === "load_kw" ? plan : null);
+  renderMetricsTable(summary);
+  renderSavingsTable(savings);
+  if (summary && summary.meta) {
+    const meta = summary.meta;
+    document.getElementById("footer-meta").textContent =
+      meta.rows.toLocaleString() + " hourly rows, " + meta.start.slice(0, 10) + " to " + meta.end.slice(0, 10) +
+      ", " + meta.config.n_folds + " folds of " + meta.config.fold_hours / 24 + " days, " + meta.hardware.cpu;
+  }
+}
+
+document.getElementById("target").addEventListener("change", (event) => {
+  state.target = event.target.value;
+  refresh();
+});
+
+refresh();
+loadReplayChoices();
+setInterval(refresh, 5 * 60 * 1000);
