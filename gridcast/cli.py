@@ -63,12 +63,15 @@ def dispatch_eval(
     model: list[str] = typer.Option(["lightgbm"], "--model", "-m", help="Forecast models to dispatch with"),
     reference: str = typer.Option("naive_168", help="Model used as the naive-forecast baseline"),
     output: Path = typer.Option(None, help="Where to write the comparison table"),
+    power_share: float = typer.Option(0.08, help="Battery power as a share of peak load"),
+    hours: float = typer.Option(4.0, help="Battery duration at full power"),
+    demand_rate: float = typer.Option(14.0, help="Demand charge per kW per month"),
 ) -> None:
     settings = get_settings()
     frame = dataset.load_frame(data or settings.processed_dir / "microgrid_hourly.csv")
     forecasts = pd.read_csv(predictions or settings.results_dir / "predictions.csv.gz", parse_dates=["origin"])
-    battery = Battery.sized_for(frame["load_kw"].to_numpy())
-    tariff = Tariff()
+    battery = Battery.sized_for(frame["load_kw"].to_numpy(), power_share, hours)
+    tariff = Tariff(demand_rate=demand_rate)
     names = list(dict.fromkeys([reference, *model]))
     table = evaluate_dispatch(frame, forecasts, names, reference, tariff, battery)
     write_dispatch_report(table, battery, tariff, output or settings.results_dir / "dispatch_savings.csv")
