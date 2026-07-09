@@ -12,8 +12,6 @@ from gridcast.data import dataset
 from gridcast.dispatch.battery import Battery
 from gridcast.dispatch.evaluate import evaluate_dispatch, write_dispatch_report
 from gridcast.dispatch.tariff import Tariff
-from gridcast.flows import default_jobs, forecast_flow, retrain_flow
-from gridcast.scheduler import serve as serve_jobs
 from gridcast.zoo import MODEL_NAMES
 
 app = typer.Typer(help="GridCast forecasting and dispatch toolkit", no_args_is_help=True)
@@ -65,12 +63,15 @@ def dispatch_eval(
     model: list[str] = typer.Option(["lightgbm"], "--model", "-m", help="Forecast models to dispatch with"),
     reference: str = typer.Option("naive_168", help="Model used as the naive-forecast baseline"),
     output: Path = typer.Option(None, help="Where to write the comparison table"),
+    power_share: float = typer.Option(0.08, help="Battery power as a share of peak load"),
+    hours: float = typer.Option(4.0, help="Battery duration at full power"),
+    demand_rate: float = typer.Option(14.0, help="Demand charge per kW per month"),
 ) -> None:
     settings = get_settings()
     frame = dataset.load_frame(data or settings.processed_dir / "microgrid_hourly.csv")
     forecasts = pd.read_csv(predictions or settings.results_dir / "predictions.csv.gz", parse_dates=["origin"])
-    battery = Battery.sized_for(frame["load_kw"].to_numpy())
-    tariff = Tariff()
+    battery = Battery.sized_for(frame["load_kw"].to_numpy(), power_share, hours)
+    tariff = Tariff(demand_rate=demand_rate)
     names = list(dict.fromkeys([reference, *model]))
     table = evaluate_dispatch(frame, forecasts, names, reference, tariff, battery)
     write_dispatch_report(table, battery, tariff, output or settings.results_dir / "dispatch_savings.csv")
@@ -83,6 +84,8 @@ def retrain(
     target: list[str] = typer.Option(["load_kw"], "--target", "-t"),
     tolerance: float = typer.Option(0.02, help="Allowed relative regression before promotion is refused"),
 ) -> None:
+    from gridcast.flows import retrain_flow
+
     reports = retrain_flow(get_settings(), tuple(target), model, tolerance)
     for report in reports:
         verdict = "promoted" if report["promoted"] else "kept production"
@@ -95,6 +98,8 @@ def forecast(
     target: list[str] = typer.Option(["load_kw"], "--target", "-t"),
     as_of: str = typer.Option(None, help="Forecast origin, defaults to the last observation"),
 ) -> None:
+    from gridcast.flows import forecast_flow
+
     origin = pd.Timestamp(as_of) if as_of else None
     payloads = forecast_flow(get_settings(), tuple(target), model, origin)
     for name, payload in payloads.items():
@@ -103,6 +108,9 @@ def forecast(
 
 @app.command("schedule")
 def schedule(poll_seconds: float = typer.Option(30.0)) -> None:
+    from gridcast.flows import default_jobs
+    from gridcast.scheduler import serve as serve_jobs
+
     serve_jobs(default_jobs(get_settings()), poll_seconds)
 
 
