@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 import pandas as pd
@@ -42,6 +43,7 @@ def benchmark(
     output: Path = typer.Option(None, help="Directory for result tables"),
     tag: str = typer.Option("", help="Suffix for the result files"),
 ) -> None:
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
     settings = get_settings()
     frame = dataset.load_frame(data or settings.processed_dir / "microgrid_hourly.csv")
     config = BacktestConfig(
