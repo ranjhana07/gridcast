@@ -43,3 +43,16 @@ def test_seasonal_naive_is_exact_on_periodic_series():
     assert np.allclose(table["mae"], 0.0)
     assert set(result.predictions["horizon"]) == set(range(1, 25))
     assert len(timing_summary(result.timings)) == 1
+
+
+def test_shards_combine_into_one_table(tmp_path):
+    from gridcast.benchmark import combine_shards, run_benchmark
+
+    frame = periodic_frame()
+    config = BacktestConfig(n_folds=2, fold_hours=24 * 14, stride=6)
+    run_benchmark(frame, ["naive_24"], config, tmp_path, tag="a")
+    run_benchmark(frame, ["naive_168"], config, tmp_path, tag="b")
+    tables = combine_shards(tmp_path, ["a", "b"])
+    assert set(tables["metrics_overall"]["model"]) == {"naive_24", "naive_168"}
+    assert (tmp_path / "predictions.csv.gz").exists()
+    assert (tmp_path / "meta.json").exists()

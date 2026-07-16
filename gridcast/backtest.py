@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import time
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass
@@ -8,6 +9,8 @@ import numpy as np
 import pandas as pd
 
 from gridcast.models.base import Forecaster
+
+logger = logging.getLogger(__name__)
 
 ModelFactory = Callable[[], Forecaster]
 
@@ -98,9 +101,11 @@ def run_backtest(
             started = time.perf_counter()
             model.fit(train)
             fit_seconds = time.perf_counter() - started
+            logger.info("fold %d %s fitted in %.1fs", fold.number, name, fit_seconds)
             started = time.perf_counter()
             forecast = model.predict(window, origins)
             predict_seconds = time.perf_counter() - started
+            logger.info("fold %d %s predicted %d origins in %.1fs", fold.number, name, len(positions), predict_seconds)
             prediction_parts.append(collect_rows(name, fold, window, config.target, positions, forecast))
             timing_rows.append(
                 {

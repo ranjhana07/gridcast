@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 import pandas as pd
 import typer
 
 from gridcast.backtest import BacktestConfig
-from gridcast.benchmark import run_benchmark
+from gridcast.benchmark import combine_shards, run_benchmark
 from gridcast.config import get_settings
 from gridcast.data import dataset
 from gridcast.dispatch.battery import Battery
@@ -42,6 +43,7 @@ def benchmark(
     output: Path = typer.Option(None, help="Directory for result tables"),
     tag: str = typer.Option("", help="Suffix for the result files"),
 ) -> None:
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
     settings = get_settings()
     frame = dataset.load_frame(data or settings.processed_dir / "microgrid_hourly.csv")
     config = BacktestConfig(
@@ -52,6 +54,18 @@ def benchmark(
         stride=stride,
     )
     tables = run_benchmark(frame, models, config, output or settings.results_dir, tag=tag)
+    typer.echo(tables["metrics_overall"].to_string(index=False))
+    typer.echo(tables["coverage_overall"].to_string(index=False))
+
+
+@app.command("combine")
+def combine(
+    shard: list[str] = typer.Option(..., "--shard", "-s", help="Tags of benchmark runs to merge"),
+    output: Path = typer.Option(None, help="Directory holding the shard files"),
+    tag: str = typer.Option("", help="Suffix for the merged files"),
+) -> None:
+    settings = get_settings()
+    tables = combine_shards(output or settings.results_dir, shard, tag)
     typer.echo(tables["metrics_overall"].to_string(index=False))
     typer.echo(tables["coverage_overall"].to_string(index=False))
 
