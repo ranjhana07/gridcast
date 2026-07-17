@@ -9,7 +9,7 @@ from gridcast.config import Settings, get_settings
 from gridcast.data import uci
 from gridcast.data.calendar import calendar_features
 from gridcast.data.solar import clear_sky_hours, simulate_pv
-from gridcast.data.validation import prepare_series
+from gridcast.data.validation import prepare_series, require_columns
 from gridcast.data.weather import WEATHER_VARIABLES, Fetcher, http_fetch, load_weather
 
 TARGETS = ("load_kw", "solar_kw")
@@ -61,6 +61,7 @@ def save_frame(frame: pd.DataFrame, path: Path) -> None:
 def load_frame(path: Path) -> pd.DataFrame:
     frame = pd.read_csv(path, index_col=0, parse_dates=True)
     frame.index.name = "timestamp"
+    require_columns(frame, ("load_kw", "solar_kw", "temperature_2m", "hour"))
     return frame
 
 
