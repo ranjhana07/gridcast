@@ -44,3 +44,15 @@ def test_fill_gaps_uses_daily_pattern():
     series.iloc[60:80] = np.nan
     filled = fill_gaps(series)
     assert np.allclose(filled.iloc[60:80], truth.iloc[60:80], atol=1e-6)
+
+
+def test_require_columns_checks_grid_and_names():
+    from gridcast.data.validation import require_columns
+
+    index = pd.date_range("2024-01-01", periods=48, freq="1h")
+    frame = pd.DataFrame({"load_kw": 1.0, "solar_kw": 0.0}, index=index)
+    require_columns(frame, ("load_kw",))
+    with pytest.raises(ValidationError):
+        require_columns(frame, ("load_kw", "temperature_2m"))
+    with pytest.raises(ValidationError):
+        require_columns(frame.drop(frame.index[5]), ("load_kw",))

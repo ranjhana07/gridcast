@@ -97,3 +97,14 @@ def fill_gaps(series: pd.Series, period: int = 24, max_interpolate: int = 3) -> 
 def prepare_series(series: pd.Series, freq: str = "1h", allow_non_positive: bool = False) -> pd.Series:
     cleaned = clean_series(series, freq, allow_non_positive)
     return fill_gaps(cleaned)
+
+
+def require_columns(frame: pd.DataFrame, columns: tuple[str, ...]) -> None:
+    missing = [name for name in columns if name not in frame.columns]
+    if missing:
+        raise ValidationError(f"frame is missing columns: {', '.join(missing)}")
+    if frame.index.has_duplicates:
+        raise ValidationError("frame has duplicated timestamps")
+    steps = frame.index.to_series().diff().dropna().unique()
+    if len(steps) > 1:
+        raise ValidationError("frame is not on a regular hourly grid")
