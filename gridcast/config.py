@@ -38,5 +38,9 @@ class Settings:
         return self.data_dir / "processed"
 
 
+def worker_threads() -> int:
+    return max(1, int(os.environ.get("GRIDCAST_THREADS", "2")))
+
+
 def get_settings() -> Settings:
     return Settings()
