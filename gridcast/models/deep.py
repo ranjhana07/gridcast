@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import copy
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import numpy as np
 import pandas as pd
 import torch
 from torch import nn
 
+from gridcast.config import worker_threads
 from gridcast.models.base import Forecast, origin_positions
 
 ENCODER_COVARIATES = (
@@ -46,7 +47,7 @@ class DeepConfig:
     learning_rate: float = 2e-3
     validation_share: float = 0.1
     seed: int = 7
-    threads: int = 2
+    threads: int = field(default_factory=worker_threads)
 
 
 def pinball_loss(prediction: torch.Tensor, target: torch.Tensor, quantiles: torch.Tensor) -> torch.Tensor:

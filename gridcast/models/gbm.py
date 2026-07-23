@@ -4,6 +4,7 @@ import lightgbm as lgb
 import numpy as np
 import pandas as pd
 
+from gridcast.config import worker_threads
 from gridcast.features import FeatureSpec, horizon_features, origin_features, training_matrix
 from gridcast.models.base import Forecast, origin_positions
 
@@ -17,7 +18,7 @@ DEFAULT_PARAMS = {
     "colsample_bytree": 0.8,
     "reg_lambda": 1.0,
     "verbose": -1,
-    "n_jobs": 2,
+    "n_jobs": worker_threads(),
     "max_bin": 127,
 }
 
