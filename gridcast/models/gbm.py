@@ -32,6 +32,7 @@ class DirectLightGBM:
         name: str = "lightgbm",
     ) -> None:
         self.spec = spec or FeatureSpec()
+        self.target = self.spec.target
         self.params = {**DEFAULT_PARAMS, **(params or {})}
         self.quantiles = quantiles
         self.name = name

@@ -31,3 +31,19 @@ def test_calibration_never_touches_test_period():
     model.fit(train)
     positions = model.calibration_positions(len(train), len(train) - model.calibration_hours)
     assert positions.max() + model.horizon < len(train)
+
+
+def test_wrapper_calibrates_on_the_models_own_target(synthetic_frame):
+    from gridcast.features import solar_spec
+    from gridcast.models.gbm import DirectLightGBM
+
+    frame = synthetic_frame.assign(sun_elevation=0.5)
+    spec = solar_spec(horizon=4)
+    model = ConformalForecaster(
+        lambda: DirectLightGBM(spec, {"n_estimators": 20, "n_jobs": 1}),
+        calibration_hours=24 * 14,
+        stride=6,
+    )
+    assert model.target == "solar_kw"
+    model.fit(frame.iloc[: 24 * 80])
+    assert model.split.radius.max() < 0.5 * frame["load_kw"].mean()
