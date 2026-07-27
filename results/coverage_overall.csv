@@ -1,0 +1,6 @@
+model,coverage,width
+ets,0.7175,536.3383
+lightgbm,0.7217,222.5621
+lstm_quantile,0.7442,293.0526
+naive_168,0.7586,381.9669
+naive_24,0.7484,512.7921

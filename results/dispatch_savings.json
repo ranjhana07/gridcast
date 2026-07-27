@@ -1,0 +1,13 @@
+{
+  "battery": {
+    "capacity_kwh": 1411.832951259613,
+    "power_kw": 352.95823781490327,
+    "round_trip_efficiency": 0.9
+  },
+  "tariff": {
+    "off_peak": 0.1,
+    "shoulder": 0.18,
+    "peak": 0.32,
+    "demand_rate_per_kw_month": 14.0
+  }
+}
