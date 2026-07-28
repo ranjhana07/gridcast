@@ -1,0 +1,7 @@
+model,fold,fit_seconds,predict_seconds,origins
+naive_24,0,0.007,0.003,53
+lightgbm,0,27.735,0.482,53
+naive_24,1,0.012,0.002,53
+lightgbm,1,29.752,0.419,53
+naive_24,2,0.004,0.005,53
+lightgbm,2,26.409,0.424,53

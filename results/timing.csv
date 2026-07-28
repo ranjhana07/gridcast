@@ -1,0 +1,6 @@
+model,fit_seconds,predict_seconds,origins,predict_ms_per_origin
+ets,292.2845,207.2416,159,1303.4063
+lightgbm,127.8994,1.3479,159,8.4775
+lstm_quantile,66.3725,0.1027,159,0.6460
+naive_168,0.0034,0.0025,159,0.0157
+naive_24,0.0070,0.0037,159,0.0230

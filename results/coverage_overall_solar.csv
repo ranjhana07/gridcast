@@ -1,0 +1,3 @@
+model,coverage,width
+lightgbm,0.8532,37.5666
+naive_24,0.8784,53.6946
