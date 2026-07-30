@@ -147,3 +147,131 @@ Base URL `http://localhost:8000`. Interactive docs at `/docs`.
 | `GET /api/dispatch` | latest battery schedule |
 | `GET /api/dispatch/savings` | dispatch cost comparison table |
 | `GET /api/models` | last retrain report |
+
+## Results
+
+Hardware: 13th Gen Intel(R) Core(TM) i5-13420H (12 logical cores), Windows-11-10.0.26200-SP0, Python 3.12.10, torch 2.15.0+cpu (CPU), LightGBM 4.7.0. The machine was shared with other jobs while the benchmark ran, so the timing columns are indicative only. Training used one thread per model (`GRIDCAST_THREADS=1`).
+
+Data: 26,305 hourly rows from 2012-01-01 to 2015-01-01. Rolling-origin backtest with 3 expanding-window folds of 14 days each (42 test days), a forecast origin every 6 hours, horizon 24 hours, models refit at the start of each fold. Intervals target 80 percent coverage (P10 to P90). Weather at the target hour is the observed value, so the models get a perfect weather forecast.
+
+Commands:
+
+```
+gridcast benchmark --folds 3 --fold-days 14 --stride 6
+gridcast benchmark -m naive_24 -m lightgbm --target solar_kw --folds 3 --fold-days 14 --stride 6 --tag solar
+gridcast dispatch-eval --model lightgbm --model lstm_quantile --model ets --reference naive_168
+```
+
+### Point forecast error, all horizons
+
+Source: `results/metrics_overall.csv`. Units are kW for MAE and RMSE, percent for MAPE and sMAPE.
+
+| model | mae | rmse | mape | smape |
+| --- | --- | --- | --- | --- |
+| naive_24 | 191.7 | 282.7 | 7.92 | 7.84 |
+| naive_168 | 142.3 | 204.1 | 5.87 | 5.83 |
+| ets | 220.3 | 337.6 | 9.67 | 9.37 |
+| lightgbm | 90.4 | 130.3 | 3.74 | 3.69 |
+| lstm_quantile | 109.5 | 152.4 | 4.45 | 4.44 |
+
+### MAE by horizon (kW)
+
+Source: `results/metrics_by_horizon.csv`, which also has RMSE, MAPE and sMAPE for every horizon from 1 to 24.
+
+| model | h=1 | h=6 | h=12 | h=18 | h=24 |
+| --- | --- | --- | --- | --- | --- |
+| naive_24 | 199.1 | 157.4 | 159.7 | 159.3 | 158.7 |
+| naive_168 | 144.9 | 125.0 | 124.3 | 124.6 | 125.5 |
+| ets | 85.3 | 192.0 | 207.0 | 235.7 | 198.8 |
+| lightgbm | 63.1 | 73.9 | 81.9 | 85.6 | 88.4 |
+| lstm_quantile | 111.2 | 100.3 | 101.1 | 102.4 | 100.4 |
+
+### Interval coverage and width
+
+Nominal coverage is 80 percent. Source: `results/coverage_overall.csv`, per-horizon values in `results/coverage_by_horizon.csv`.
+
+| model | coverage % | mean width kW |
+| --- | --- | --- |
+| naive_24 | 74.8 | 513 |
+| naive_168 | 75.9 | 382 |
+| ets | 71.8 | 536 |
+| lightgbm | 72.2 | 223 |
+| lstm_quantile | 74.4 | 293 |
+
+### Training and inference time
+
+`fit` includes the conformal calibration pass. For ETS the model is fitted at prediction time, which is why its inference cost is large. Source: `results/timing.csv`.
+
+| model | fit s (3 folds) | predict s | origins | predict ms/origin |
+| --- | --- | --- | --- | --- |
+| naive_24 | 0.0 | 0.00 | 159 | 0.02 |
+| naive_168 | 0.0 | 0.00 | 159 | 0.02 |
+| ets | 292.3 | 207.24 | 159 | 1303.41 |
+| lightgbm | 127.9 | 1.35 | 159 | 8.48 |
+| lstm_quantile | 66.4 | 0.10 | 159 | 0.65 |
+
+### Battery dispatch
+
+Day-ahead dispatch replayed over the 42 backtest days. Battery: 353 kW, 1412 kWh, round-trip efficiency 0.9. `perfect_foresight` plans with the actual load and bounds what any forecast can achieve. `naive_168` is the naive-forecast dispatch. Costs are in the tariff currency units described above. Source: `results/dispatch_savings.csv`.
+
+| strategy | total cost | peak kW | saving vs no battery | saving % | saving vs naive_168 |
+| --- | --- | --- | --- | --- | --- |
+| no_battery | 484,256 | 4,268 | 0 | 0.00 | -13,088 |
+| perfect_foresight | 469,965 | 3,915 | 14,291 | 2.95 | 1,202 |
+| naive_168 | 471,168 | 3,989 | 13,088 | 2.70 | 0 |
+| lightgbm | 471,274 | 3,989 | 12,982 | 2.68 | -106 |
+| lstm_quantile | 471,010 | 3,989 | 13,245 | 2.74 | 157 |
+| ets | 471,052 | 3,989 | 13,203 | 2.73 | 115 |
+
+### Solar (simulated PV)
+
+The dataset has no PV measurements, so the target is a 500 kW array simulated from Open-Meteo irradiance. The forecasters see no target-hour weather for this series, only lags, calendar and sun elevation, because the target is a deterministic function of irradiance. Treat it as a smoke test of the solar code path, not as a PV forecasting result. Source: `results/*_solar.csv`.
+
+| model | MAE kW | RMSE kW | coverage % | mean width kW |
+| --- | --- | --- | --- | --- |
+| lightgbm | 7.57 | 17.30 | 85.3 | 37.6 |
+| naive_24 | 9.58 | 24.01 | 87.8 | 53.7 |
+
+### Reading the results
+
+- LightGBM has the lowest MAE at each of the 24 horizons. Its overall MAE is 36.5 percent below the weekly seasonal naive, and the LSTM sits between the two (23.0 percent below).
+- ETS is worse than both naive baselines. It is fitted on 14 days of history with a single daily season, which probably explains why it misses the weekday and weekend pattern the naive_168 baseline copies. It is also the slowest model at prediction time.
+- The 80 percent intervals under-cover on this data: observed coverage is between 71.7 and 75.9 percent. The calibration window is the 42 days before each fold. The likely cause is drift between that window and the test days, which breaks the exchangeability that split conformal assumes; this was not isolated by a separate experiment. The conformal step still narrows LightGBM's interval to about 223 kW wide, the tightest of all models. This repository does not include an online recalibration step.
+- Dispatch savings are 2.7 percent against no battery for every forecast-driven strategy and 2.95 percent for perfect foresight. The cost differences between forecast models are small (a few hundred currency units against roughly 13,000 saved over 42 days), and they do not follow the MAE ranking: with this tariff and battery size, the dispatch plan is not sensitive to the forecast differences seen here. The peak after dispatch is 3,989 kW for all forecast-driven runs.
+- Limits: one dataset, 42 test days, observed weather used as the weather forecast, an assumed tariff and an assumed battery. Treat the ranking of models as indicative for this series only.
+
+## Project layout
+
+```
+gridcast/
+  config.py            settings from environment
+  data/                loaders, weather client, calendar, validation, PV simulation, frame builder
+  features.py          direct multi-horizon feature builder
+  models/              naive, ets, gbm, deep, calibrated wrapper
+  conformal.py         split conformal and CQR calibrators
+  backtest.py          rolling-origin runner
+  evaluation.py        metric tables
+  benchmark.py         benchmark runner and result files
+  zoo.py               model factories
+  training.py          candidate training and MLflow logging
+  registry.py          registration and promotion
+  flows.py             retrain and forecast flows
+  scheduler.py         interval scheduler
+  dispatch/            tariff, battery, LP optimizer, simulator, evaluation
+  api/                 FastAPI app and schemas
+  cli.py               Typer entry point
+dashboard/             static dashboard
+deploy/                nginx config for the compose stack
+results/               benchmark output used in this README
+tests/                 pytest suite
+```
+
+## Testing
+
+```
+pytest
+```
+
+The suite needs no network, API keys or services. Weather requests use a fake fetcher, MLflow runs against a temporary file store and the API tests use a fake artifact directory. It covers feature leakage, conformal coverage on synthetic data, the optimizer on small hand-checked cases, the backtest folds, the registry and the API routes.
+
+Docker was not available while building this project, so `Dockerfile` and `docker-compose.yml` are untested. `docker compose up --build` starts Postgres (TimescaleDB image), an MLflow server, the API, the scheduler and an nginx container for the dashboard on port 8080.
