@@ -47,3 +47,20 @@ def test_wrapper_calibrates_on_the_models_own_target(synthetic_frame):
     assert model.target == "solar_kw"
     model.fit(frame.iloc[: 24 * 80])
     assert model.split.radius.max() < 0.5 * frame["load_kw"].mean()
+
+
+def test_online_wrapper_keeps_coverage_when_noise_grows():
+    index = pd.date_range("2024-01-01", periods=24 * 200, freq="1h", name="timestamp")
+    rng = np.random.default_rng(21)
+    scale = np.where(np.arange(len(index)) < 24 * 120, 4.0, 14.0)
+    base = 100 + 30 * np.sin(2 * np.pi * index.hour.to_numpy() / 24)
+    frame = pd.DataFrame({"load_kw": base + rng.normal(0, 1, len(index)) * scale}, index=index)
+    config = BacktestConfig(n_folds=1, fold_hours=24 * 70, stride=4)
+
+    def build(online):
+        return lambda: ConformalForecaster(lambda: SeasonalNaive(period=24), alpha=0.2, stride=2, online=online)
+
+    static = run_backtest(frame, {"m": build(False)}, config).predictions
+    adaptive = run_backtest(frame, {"m": build(True)}, config).predictions
+    assert coverage_overall(adaptive)["coverage"].iloc[0] > coverage_overall(static)["coverage"].iloc[0] + 0.05
+    assert coverage_overall(adaptive)["coverage"].iloc[0] > 0.65

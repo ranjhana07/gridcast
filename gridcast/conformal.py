@@ -46,3 +46,23 @@ class ConformalizedQuantile:
         if self.correction is None:
             raise RuntimeError("calibrator has not been fitted")
         return lower - self.correction, upper + self.correction
+
+
+def online_corrections(
+    calibration_scores: np.ndarray,
+    test_scores: np.ndarray,
+    positions: np.ndarray,
+    alpha: float,
+    window: int = 400,
+) -> np.ndarray:
+    order = np.argsort(positions, kind="stable")
+    if not np.array_equal(order, np.arange(len(positions))):
+        raise ValueError("origins must be sorted in time")
+    n_origins, horizon = test_scores.shape
+    corrections = np.empty((n_origins, horizon))
+    for index in range(n_origins):
+        for step in range(1, horizon + 1):
+            known = int(np.searchsorted(positions, positions[index] - step, side="right"))
+            pool = np.concatenate([calibration_scores[:, step - 1], test_scores[:known, step - 1]])
+            corrections[index, step - 1] = conformal_quantile(pool[-window:, None], alpha)[0]
+    return corrections

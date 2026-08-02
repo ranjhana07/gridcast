@@ -85,8 +85,10 @@ def write_meta(
     alpha: float,
     output_dir: Path,
     suffix: str = "",
+    online: bool = False,
 ) -> None:
     meta = {
+        "online_conformal": online,
         "config": asdict(config),
         "alpha": alpha,
         "models": models,
@@ -105,12 +107,13 @@ def run_benchmark(
     output_dir: Path,
     alpha: float = 0.2,
     tag: str = "",
+    online: bool = False,
 ) -> dict[str, pd.DataFrame]:
-    factories = build_factories(models, config.target, config.horizon, alpha)
+    factories = build_factories(models, config.target, config.horizon, alpha, online)
     result = run_backtest(frame, factories, config)
     suffix = f"_{tag}" if tag else ""
     tables = write_tables(result.predictions, result.timings, output_dir, suffix)
-    write_meta(frame, models, config, alpha, output_dir, suffix)
+    write_meta(frame, models, config, alpha, output_dir, suffix, online)
     return tables
 
 
