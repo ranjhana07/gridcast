@@ -36,6 +36,7 @@ def build_factories(
     target: str = "load_kw",
     horizon: int = 24,
     alpha: float = 0.2,
+    online: bool = False,
 ) -> dict[str, Callable[[], ConformalForecaster]]:
     factories = {}
     for name in names:
@@ -43,7 +44,7 @@ def build_factories(
         stride = CALIBRATION_STRIDE.get(name, 3)
         factories[name] = (
             lambda inner=inner, name=name, stride=stride: ConformalForecaster(
-                inner, alpha=alpha, stride=stride, name=name
+                inner, alpha=alpha, stride=stride, name=name, online=online
             )
         )
     return factories

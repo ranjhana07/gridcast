@@ -42,6 +42,7 @@ def benchmark(
     data: Path = typer.Option(None, help="Modelling frame CSV"),
     output: Path = typer.Option(None, help="Directory for result tables"),
     tag: str = typer.Option("", help="Suffix for the result files"),
+    online: bool = typer.Option(False, help="Recalibrate intervals online from resolved errors"),
 ) -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
     settings = get_settings()
@@ -53,7 +54,7 @@ def benchmark(
         fold_hours=fold_days * 24,
         stride=stride,
     )
-    tables = run_benchmark(frame, models, config, output or settings.results_dir, tag=tag)
+    tables = run_benchmark(frame, models, config, output or settings.results_dir, tag=tag, online=online)
     typer.echo(tables["metrics_overall"].to_string(index=False))
     typer.echo(tables["coverage_overall"].to_string(index=False))
 

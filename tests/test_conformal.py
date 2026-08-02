@@ -59,3 +59,43 @@ def test_invalid_inputs():
         conformal_quantile(np.empty((0, 2)), 0.1)
     with pytest.raises(RuntimeError):
         SplitConformal().interval(np.zeros((1, 2)))
+
+
+def test_online_corrections_follow_a_change_in_noise_level():
+    from gridcast.conformal import online_corrections
+
+    rng = np.random.default_rng(11)
+    horizon = 4
+    calibration = np.abs(rng.normal(0, 1, size=(500, horizon)))
+    positions = np.arange(0, 3000, 3)
+    test_scores = np.abs(rng.normal(0, 3, size=(len(positions), horizon)))
+    corrections = online_corrections(calibration, test_scores, positions, 0.2, window=300)
+    static = np.quantile(calibration, 0.8, axis=0)
+    late = slice(len(positions) // 2, None)
+    online_cover = np.mean(test_scores[late] <= corrections[late])
+    static_cover = np.mean(test_scores[late] <= static)
+    assert static_cover < 0.45
+    assert abs(online_cover - 0.8) < 0.05
+
+
+def test_online_corrections_only_use_scores_that_have_resolved():
+    from gridcast.conformal import online_corrections
+
+    positions = np.array([0, 1, 2, 3])
+    calibration = np.zeros((5, 2))
+    test_scores = np.array([[100.0, 100.0]] * 4)
+    corrections = online_corrections(calibration, test_scores, positions, 0.2, window=50)
+    assert corrections[0, 0] == 0.0
+    assert corrections[0, 1] == 0.0
+    assert corrections[1, 1] == 0.0
+    assert corrections[1, 0] == 100.0
+    assert corrections[2, 1] == 100.0
+    big = online_corrections(calibration[:1], test_scores, positions, 0.2, window=50)
+    assert big[3, 0] == 100.0
+
+
+def test_online_requires_time_ordered_origins():
+    from gridcast.conformal import online_corrections
+
+    with pytest.raises(ValueError):
+        online_corrections(np.zeros((3, 1)), np.zeros((2, 1)), np.array([5, 1]), 0.2)
