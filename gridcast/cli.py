@@ -67,6 +67,24 @@ def benchmark(
     typer.echo(tables["coverage_overall"].to_string(index=False))
 
 
+@app.command("importance")
+def importance(
+    data: Path = typer.Option(None, help="Modelling frame CSV"),
+    output: Path = typer.Option(None, help="Directory for the importance tables"),
+) -> None:
+    from gridcast.explain import family_table, fit_importance
+
+    settings = get_settings()
+    frame = dataset.load_frame(data or settings.processed_dir / "microgrid_hourly.csv")
+    table = fit_importance(frame)
+    target = output or settings.results_dir
+    target.mkdir(parents=True, exist_ok=True)
+    table.to_csv(target / "feature_importance.csv", index=False, float_format="%.5f")
+    families = family_table(table)
+    families.to_csv(target / "feature_importance_families.csv", index=False, float_format="%.5f")
+    typer.echo(families.to_string(index=False))
+
+
 @app.command("combine")
 def combine(
     shard: list[str] = typer.Option(..., "--shard", "-s", help="Tags of benchmark runs to merge"),
