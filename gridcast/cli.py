@@ -10,6 +10,7 @@ from gridcast.backtest import BacktestConfig
 from gridcast.benchmark import combine_shards, run_benchmark
 from gridcast.config import get_settings
 from gridcast.data import dataset
+from gridcast.data.download import fetch_uci
 from gridcast.dispatch.battery import Battery
 from gridcast.dispatch.evaluate import evaluate_dispatch, write_dispatch_report
 from gridcast.dispatch.tariff import Tariff
@@ -18,15 +19,22 @@ from gridcast.zoo import MODEL_NAMES
 app = typer.Typer(help="GridCast forecasting and dispatch toolkit", no_args_is_help=True)
 
 
+@app.command("fetch-data")
+def fetch_data(force: bool = typer.Option(False, help="Download again even if the file exists")) -> None:
+    path = fetch_uci(get_settings().raw_dir, force=force)
+    typer.echo(f"load data at {path}")
+
+
 @app.command("build-data")
 def build_data(
-    raw: Path = typer.Option(..., help="Path to LD2011_2014.txt"),
+    raw: Path = typer.Option(None, help="Path to LD2011_2014.txt, defaults to the fetched copy"),
     clients: int = typer.Option(30, help="Number of meters to aggregate"),
     start: str = typer.Option("2012-01-01", help="First day to keep"),
     output: Path = typer.Option(None, help="Where to write the modelling frame"),
 ) -> None:
     settings = get_settings()
-    frame = dataset.build_from_uci(raw, settings, n_clients=clients, start=start)
+    source = raw or settings.raw_dir / "LD2011_2014.txt"
+    frame = dataset.build_from_uci(source, settings, n_clients=clients, start=start)
     target = output or settings.processed_dir / "microgrid_hourly.csv"
     dataset.save_frame(frame, target)
     typer.echo(f"wrote {len(frame)} rows to {target}")
