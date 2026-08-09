@@ -1,10 +1,13 @@
 PYTHON ?= python
 RAW ?= data/raw/LD2011_2014.txt
 
-.PHONY: install data benchmark dispatch retrain forecast serve test lint docker-up clean
+.PHONY: install fetch data benchmark dispatch retrain forecast serve test lint docker-up clean
 
 install:
 	$(PYTHON) -m pip install -e ".[models,deep,serve,dev]"
+
+fetch:
+	$(PYTHON) -m gridcast.cli fetch-data
 
 data:
 	$(PYTHON) -m gridcast.cli build-data --raw $(RAW)
