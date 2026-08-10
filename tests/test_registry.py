@@ -68,3 +68,22 @@ def test_holdout_metrics_report_coverage(weekly_frame):
     scores = holdout_metrics(model, weekly_frame, train_end)
     assert 0.6 < scores["holdout_coverage"] <= 1.0
     assert scores["holdout_width"] > 0
+
+
+def test_benchmark_summary_is_logged(tracking_uri):
+    import mlflow
+
+    from gridcast.tracking import log_benchmark
+
+    tables = {
+        "metrics_overall": pd.DataFrame({"model": ["m"], "mae": [1.5], "rmse": [2.0], "mape": [1.0], "smape": [1.0]}),
+        "coverage_overall": pd.DataFrame({"model": ["m"], "coverage": [0.8], "width": [10.0]}),
+        "timing": pd.DataFrame({"model": ["m"], "fit_seconds": [3.0], "predict_seconds": [0.1]}),
+    }
+    meta = {"config": {"target": "load_kw", "n_folds": 2, "fold_hours": 336, "stride": 6}, "alpha": 0.2, "rows": 100}
+    configure(tracking_uri)
+    run_id = log_benchmark(tables, meta)
+    run = mlflow.get_run(run_id)
+    assert run.data.metrics["m.mae"] == 1.5
+    assert run.data.metrics["m.coverage"] == 0.8
+    assert run.data.params["folds"] == "2"
