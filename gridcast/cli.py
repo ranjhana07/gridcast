@@ -14,6 +14,7 @@ from gridcast.data.download import fetch_uci
 from gridcast.dispatch.battery import Battery
 from gridcast.dispatch.evaluate import evaluate_dispatch, write_dispatch_report
 from gridcast.dispatch.tariff import Tariff
+from gridcast.store import ResultsStore
 from gridcast.zoo import MODEL_NAMES
 
 app = typer.Typer(help="GridCast forecasting and dispatch toolkit", no_args_is_help=True)
@@ -51,6 +52,7 @@ def benchmark(
     output: Path = typer.Option(None, help="Directory for result tables"),
     tag: str = typer.Option("", help="Suffix for the result files"),
     online: bool = typer.Option(False, help="Recalibrate intervals online from resolved errors"),
+    track: bool = typer.Option(False, help="Log the benchmark summary to MLflow"),
 ) -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
     settings = get_settings()
@@ -65,6 +67,13 @@ def benchmark(
     tables = run_benchmark(frame, models, config, output or settings.results_dir, tag=tag, online=online)
     typer.echo(tables["metrics_overall"].to_string(index=False))
     typer.echo(tables["coverage_overall"].to_string(index=False))
+    if track:
+        from gridcast.tracking import configure, log_benchmark
+
+        configure(settings.mlflow_uri)
+        meta = ResultsStore(output or settings.results_dir).meta(tag) or {}
+        run_id = log_benchmark(tables, meta, run_name=f"backtest-{target}{'-' + tag if tag else ''}")
+        typer.echo(f"logged to mlflow run {run_id}")
 
 
 @app.command("importance")
