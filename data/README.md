@@ -7,11 +7,12 @@ Nothing in this folder is committed except this file. `raw`, `cache` and `proces
 UCI ElectricityLoadDiagrams20112014, 370 Portuguese customers at 15 minute resolution.
 
 ```
-curl -L -o eld.zip https://archive.ics.uci.edu/static/public/321/electricityloaddiagrams20112014.zip
-unzip eld.zip -d data/raw
+gridcast fetch-data
 ```
 
-`gridcast build-data --raw data/raw/LD2011_2014.txt` resamples to hourly means, keeps meters that are active from 2012 on (at most 2 percent zero hours), sums the first 30 of them into one microgrid series and writes `data/processed/microgrid_hourly.csv`.
+This downloads the archive from the UCI repository into `data/raw` and extracts `LD2011_2014.txt` (711 MB unpacked).
+
+`gridcast build-data` resamples to hourly means, keeps meters that are active from 2012 on (at most 2 percent zero hours), sums the first 30 of them into one microgrid series and writes `data/processed/microgrid_hourly.csv`.
 
 The March daylight saving hour is zero for every meter in the source file. Those hours are treated as missing and filled by the gap filler.
 

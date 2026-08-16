@@ -1,0 +1,7 @@
+family,share
+seasonal lags,0.86744
+recent lags,0.08193
+calendar at target hour,0.03339
+rolling statistics,0.00845
+weather at target hour,0.00631
+weather at origin,0.00248

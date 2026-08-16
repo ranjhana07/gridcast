@@ -1,0 +1,44 @@
+feature,gain,share,family
+seasonal_168,33259459134.10620,0.71549,seasonal lags
+seasonal_24,6304240214.48201,0.13562,seasonal lags
+lag_167,1112858905.59220,0.02394,recent lags
+seasonal_48,758881460.94035,0.01633,seasonal lags
+future_dayofweek,537496103.33561,0.01156,calendar at target hour
+lag_0,500636179.27376,0.01077,recent lags
+lag_1,330172045.14868,0.00710,recent lags
+lag_6,329408861.21944,0.00709,recent lags
+lag_12,314090074.62980,0.00676,recent lags
+lag_2,289817524.36287,0.00623,recent lags
+lag_3,277725314.90816,0.00597,recent lags
+trend_24,244069840.26819,0.00525,recent lags
+lag_23,219670392.31177,0.00473,recent lags
+future_hour,191813220.82316,0.00413,calendar at target hour
+future_is_holiday,165566545.50830,0.00356,calendar at target hour
+future_doy_cos,133085119.19002,0.00286,calendar at target hour
+future_doy_sin,112225358.70972,0.00241,calendar at target hour
+future_is_weekend,106234379.75814,0.00229,calendar at target hour
+future_shortwave_radiation,102242917.53133,0.00220,weather at target hour
+roll_mean_24,92222302.94922,0.00198,rolling statistics
+future_temperature_2m,86366015.83537,0.00186,weather at target hour
+roll_mean_6,80960922.74113,0.00174,rolling statistics
+origin_temperature_2m,79570300.26847,0.00171,weather at origin
+future_hour_cos,75235707.39095,0.00162,calendar at target hour
+roll_mean_168,70521476.19613,0.00152,rolling statistics
+future_dow_sin,67249945.80355,0.00145,calendar at target hour
+roll_std_24,57142019.50293,0.00123,rolling statistics
+future_dow_cos,53371458.35506,0.00115,calendar at target hour
+future_hour_sin,51750211.07975,0.00111,calendar at target hour
+lag_169,50377171.30452,0.00108,recent lags
+roll_std_168,46917192.98568,0.00101,rolling statistics
+roll_std_6,45093553.48063,0.00097,rolling statistics
+lag_168,40928171.36198,0.00088,recent lags
+lag_48,38872773.66414,0.00084,recent lags
+future_relative_humidity_2m,35777808.47152,0.00077,weather at target hour
+origin_shortwave_radiation,35665882.73608,0.00077,weather at origin
+future_cloud_cover,35022470.45744,0.00075,weather at target hour
+future_wind_speed_10m,33880301.67448,0.00073,weather at target hour
+future_month,31224585.52555,0.00067,calendar at target hour
+future_is_bridge,26857355.19580,0.00058,calendar at target hour
+lag_72,20419613.92375,0.00044,recent lags
+lag_47,19890788.58704,0.00043,recent lags
+lag_24,19647941.97241,0.00042,recent lags
