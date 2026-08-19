@@ -1,0 +1,28 @@
+{
+  "online_conformal": true,
+  "config": {
+    "target": "load_kw",
+    "horizon": 24,
+    "n_folds": 3,
+    "fold_hours": 336,
+    "stride": 6
+  },
+  "alpha": 0.2,
+  "models": [
+    "naive_24",
+    "naive_168",
+    "lightgbm",
+    "lstm_quantile"
+  ],
+  "rows": 26305,
+  "start": "2012-01-01 00:00:00",
+  "end": "2015-01-01 00:00:00",
+  "hardware": {
+    "cpu": "13th Gen Intel(R) Core(TM) i5-13420H",
+    "logical_cores": 12,
+    "os": "Windows-11-10.0.26200-SP0",
+    "python": "3.12.10",
+    "torch": "2.15.0+cpu",
+    "lightgbm": "4.7.0"
+  }
+}

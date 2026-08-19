@@ -1,0 +1,5 @@
+model,fit_seconds,predict_seconds,origins,predict_ms_per_origin
+lightgbm,134.4630,1.4894,159,9.3672
+lstm_quantile,57.2498,0.1874,159,1.1787
+naive_168,0.0062,0.0749,159,0.4714
+naive_24,0.0069,0.0722,159,0.4538

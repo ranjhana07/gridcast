@@ -65,12 +65,11 @@ pip install torch --index-url https://download.pytorch.org/whl/cpu
 pip install -e ".[models,deep,serve,dev]"
 ```
 
-Fetch the load data (see `data/README.md`) and build the modelling frame:
+Download the load data (about 250 MB zipped, see `data/README.md`) and build the modelling frame:
 
 ```
-curl -L -o eld.zip https://archive.ics.uci.edu/static/public/321/electricityloaddiagrams20112014.zip
-unzip eld.zip -d data/raw
-gridcast build-data --raw data/raw/LD2011_2014.txt
+gridcast fetch-data
+gridcast build-data
 ```
 
 The first run downloads three years of hourly weather from Open-Meteo and caches it in `data/cache`.
@@ -95,6 +94,7 @@ Settings are read from environment variables, see `.env.example`.
 
 ```
 gridcast benchmark --folds 3 --fold-days 14 --stride 6
+gridcast importance
 gridcast dispatch-eval --model lightgbm --model lstm_quantile --reference naive_168
 gridcast retrain --model lightgbm
 gridcast forecast --model lightgbm
@@ -102,7 +102,8 @@ gridcast serve
 gridcast schedule
 ```
 
-- `benchmark` runs the rolling-origin backtest for the chosen models and writes metric tables, predictions and metadata to `results/`. `--target solar_kw` benchmarks the simulated PV series, `--tag` suffixes the files. `gridcast combine` merges tagged runs.
+- `benchmark` runs the rolling-origin backtest for the chosen models and writes metric tables, predictions and metadata to `results/`. `--target solar_kw` benchmarks the simulated PV series, `--tag` suffixes the files, `--online` recalibrates the intervals online, `--track` logs the summary to MLflow. `gridcast combine` merges tagged runs.
+- `importance` fits LightGBM on the whole frame and writes gain importance by feature and by feature family.
 - `dispatch-eval` replays day-ahead battery dispatch for the backtest test period and writes `results/dispatch_savings.csv`.
 - `retrain` trains a candidate on everything except the last 14 days, logs it to MLflow, registers a new version and promotes it to the `production` alias when its holdout MAE is within 2 percent of the current production version (or better).
 - `forecast` loads the production version and writes the next 24 hours with intervals, plus a dispatch schedule, to `artifacts/`.
@@ -223,6 +224,30 @@ Day-ahead dispatch replayed over the 42 backtest days. Battery: 353 kW, 1412 kWh
 | lstm_quantile | 471,010 | 3,989 | 13,245 | 2.74 | 157 |
 | ets | 471,052 | 3,989 | 13,203 | 2.73 | 115 |
 
+### Online interval recalibration
+
+`gridcast benchmark -m naive_24 -m naive_168 -m lightgbm -m lstm_quantile --online --tag online --folds 3 --fold-days 14 --stride 6` recalibrates the interval at every origin from the 400 most recent errors that have already resolved (calibration window plus earlier test origins). Point forecasts are identical to the static run. ETS was not rerun. Source: `results/*_online.csv`.
+
+| model | static coverage % | online coverage % | static width kW | online width kW |
+| --- | --- | --- | --- | --- |
+| naive_24 | 74.8 | 75.2 | 513 | 520 |
+| naive_168 | 75.9 | 76.2 | 382 | 387 |
+| lightgbm | 72.2 | 72.8 | 223 | 227 |
+| lstm_quantile | 74.4 | 75.0 | 293 | 296 |
+
+### LightGBM feature importance
+
+`gridcast importance`, gain averaged over the 24 horizon models fitted on the whole frame. Per-feature values are in `results/feature_importance.csv`.
+
+| feature family | share of gain % |
+| --- | --- |
+| seasonal lags | 86.7 |
+| recent lags | 8.2 |
+| calendar at target hour | 3.3 |
+| rolling statistics | 0.8 |
+| weather at target hour | 0.6 |
+| weather at origin | 0.2 |
+
 ### Solar (simulated PV)
 
 The dataset has no PV measurements, so the target is a 500 kW array simulated from Open-Meteo irradiance. The forecasters see no target-hour weather for this series, only lags, calendar and sun elevation, because the target is a deterministic function of irradiance. Treat it as a smoke test of the solar code path, not as a PV forecasting result. Source: `results/*_solar.csv`.
@@ -236,7 +261,8 @@ The dataset has no PV measurements, so the target is a 500 kW array simulated fr
 
 - LightGBM has the lowest MAE at each of the 24 horizons. Its overall MAE is 36.5 percent below the weekly seasonal naive, and the LSTM sits between the two (23.0 percent below).
 - ETS is worse than both naive baselines. It is fitted on 14 days of history with a single daily season, which probably explains why it misses the weekday and weekend pattern the naive_168 baseline copies. It is also the slowest model at prediction time.
-- The 80 percent intervals under-cover on this data: observed coverage is between 71.7 and 75.9 percent. The calibration window is the 42 days before each fold. The likely cause is drift between that window and the test days, which breaks the exchangeability that split conformal assumes; this was not isolated by a separate experiment. The conformal step still narrows LightGBM's interval to about 223 kW wide, the tightest of all models. This repository does not include an online recalibration step.
+- The 80 percent intervals under-cover on this data: observed coverage is between 71.7 and 75.9 percent. The calibration window is the 42 days before each fold. The likely cause is drift between that window and the test days, which breaks the exchangeability that split conformal assumes; this was not isolated by a separate experiment. The conformal step still narrows LightGBM's interval to about 223 kW wide, the tightest of all models. The online recalibration option moves coverage by less than one percentage point for every model (table above), so it does not fix the gap with the 400-error window used here.
+- Seasonal lags carry most of LightGBM's gain (86.7 percent), recent lags add 8.2 percent and observed target-hour weather only 0.6 percent. The calendar and weather inputs matter little on this series.
 - Dispatch savings are 2.7 percent against no battery for every forecast-driven strategy and 2.95 percent for perfect foresight. The cost differences between forecast models are small (a few hundred currency units against roughly 13,000 saved over 42 days), and they do not follow the MAE ranking: with this tariff and battery size, the dispatch plan is not sensitive to the forecast differences seen here. The peak after dispatch is 3,989 kW for all forecast-driven runs.
 - Limits: one dataset, 42 test days, observed weather used as the weather forecast, an assumed tariff and an assumed battery. Treat the ranking of models as indicative for this series only.
 

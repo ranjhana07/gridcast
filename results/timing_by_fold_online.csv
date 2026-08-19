@@ -1,0 +1,13 @@
+model,fold,fit_seconds,predict_seconds,origins
+naive_24,0,0.002,0.022,53
+naive_168,0,0.001,0.018,53
+lightgbm,0,40.772,0.519,53
+lstm_quantile,0,29.675,0.060,53
+naive_24,1,0.002,0.031,53
+naive_168,1,0.002,0.031,53
+lightgbm,1,48.276,0.451,53
+lstm_quantile,1,14.240,0.049,53
+naive_24,2,0.003,0.018,53
+naive_168,2,0.003,0.026,53
+lightgbm,2,45.415,0.519,53
+lstm_quantile,2,13.334,0.079,53
