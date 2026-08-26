@@ -147,6 +147,7 @@ Base URL `http://localhost:8000`. Interactive docs at `/docs`.
 | `GET /api/backtest/series?model=&origin=` | actual, forecast and interval for one origin |
 | `GET /api/dispatch` | latest battery schedule |
 | `GET /api/dispatch/savings` | dispatch cost comparison table |
+| `GET /api/importance?top=` | LightGBM gain importance by family and feature |
 | `GET /api/models` | last retrain report |
 
 ## Results

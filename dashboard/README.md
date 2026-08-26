@@ -8,6 +8,7 @@ Panels:
 - backtest replay: pick a model and a forecast origin and compare against what happened
 - MAE and interval coverage by horizon for every benchmarked model
 - dispatch schedule: charge, discharge, state of charge, grid draw and tariff price
+- LightGBM feature importance by family
 - backtest summary and dispatch cost tables
 
 The page talks to the API on the same origin. To point it somewhere else, open it with `?api=http://host:8000`.

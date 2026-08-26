@@ -271,6 +271,24 @@ function renderHorizon(data) {
   });
 }
 
+function renderImportance(data) {
+  if (!data || !data.families.length) {
+    showEmpty("#chart-importance", "Feature importance has not been computed. Run gridcast importance.");
+    return;
+  }
+  const rows = [...data.families].sort((a, b) => b.share - a.share);
+  drawChart("importance", "#chart-importance", {
+    ...baseOptions(260),
+    chart: { ...baseOptions(260).chart, type: "bar" },
+    series: [{ name: "Share of gain", data: rows.map((r) => +(r.share * 100).toFixed(2)) }],
+    colors: [palette.point],
+    plotOptions: { bar: { horizontal: true, barHeight: "60%" } },
+    xaxis: { categories: rows.map((r) => r.family), labels: { formatter: (v) => v + "%" } },
+    legend: { show: false },
+    tooltip: { shared: false, y: { formatter: (v) => v + "%" } },
+  });
+}
+
 function renderDispatch(plan) {
   if (!plan) {
     showEmpty("#chart-dispatch", "No dispatch schedule has been published yet.");
@@ -373,12 +391,13 @@ function renderSavingsTable(data) {
 async function refresh() {
   const status = document.getElementById("status");
   const target = state.target;
-  const [forecast, plan, summary, horizon, savings] = await Promise.all([
+  const [forecast, plan, summary, horizon, savings, importance] = await Promise.all([
     tryJson("/api/forecast?target=" + target),
     tryJson("/api/dispatch"),
     tryJson("/api/backtest/summary"),
     tryJson("/api/backtest/horizon"),
     tryJson("/api/dispatch/savings"),
+    tryJson("/api/importance"),
   ]);
   const health = await tryJson("/health");
   status.textContent = health ? "online" : "api unreachable";
@@ -386,6 +405,7 @@ async function refresh() {
   renderKpis(forecast, target === "load_kw" ? plan : null, summary);
   renderForecast(forecast);
   renderHorizon(horizon);
+  renderImportance(importance);
   renderDispatch(target === "load_kw" ? plan : null);
   renderMetricsTable(summary);
   renderSavingsTable(savings);
