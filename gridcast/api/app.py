@@ -147,6 +147,14 @@ def create_app(settings: Settings | None = None, dashboard_dir: Path | None = No
             raise HTTPException(status_code=404, detail="dispatch evaluation has not been run")
         return {"strategies": records(table)}
 
+    @app.get("/api/importance")
+    def importance(top: int = Query(10, ge=1, le=50)) -> dict:
+        families = results.table("feature_importance_families")
+        features = results.table("feature_importance")
+        if families is None or features is None:
+            raise HTTPException(status_code=404, detail="feature importance has not been computed")
+        return {"families": records(families), "features": records(features.head(top))}
+
     @app.get("/api/models")
     def models() -> dict:
         return artifacts.read_json("retrain_latest.json") or {"runs": []}

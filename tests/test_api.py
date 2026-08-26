@@ -85,6 +85,12 @@ def populated(tmp_path: Path) -> Settings:
     pd.DataFrame({"strategy": ["no_battery", "lightgbm"], "total_cost": [1000.0, 950.0]}).to_csv(
         results / "dispatch_savings.csv", index=False
     )
+    pd.DataFrame({"feature": ["seasonal_24", "lag_0", "roll_mean_6"], "gain": [8.0, 1.5, 0.5], "share": [0.8, 0.15, 0.05], "family": ["seasonal lags", "recent lags", "rolling statistics"]}).to_csv(
+        results / "feature_importance.csv", index=False
+    )
+    pd.DataFrame({"family": ["seasonal lags", "recent lags"], "share": [0.8, 0.2]}).to_csv(
+        results / "feature_importance_families.csv", index=False
+    )
     return Settings(artifact_dir=artifacts, results_dir=results)
 
 
@@ -156,3 +162,10 @@ def test_dispatch_routes(client):
 
 def test_models_route_defaults_to_empty(empty_client):
     assert empty_client.get("/api/models").json() == {"runs": []}
+
+
+def test_importance_route(client, empty_client):
+    body = client.get("/api/importance", params={"top": 2}).json()
+    assert body["families"][0]["family"] == "seasonal lags"
+    assert [row["feature"] for row in body["features"]] == ["seasonal_24", "lag_0"]
+    assert empty_client.get("/api/importance").status_code == 404
